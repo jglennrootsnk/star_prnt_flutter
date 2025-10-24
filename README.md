@@ -31,7 +31,9 @@ Add this to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  star_prnt_flutter: ^1.0.0
+  star_prnt_flutter:
+    git:
+      url: https://github.com/jglennrootsnk/star_prnt_flutter.git
 ```
 
 Then run:
