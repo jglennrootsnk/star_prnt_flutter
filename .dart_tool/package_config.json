@@ -57,7 +57,7 @@
     },
     {
       "name": "flutter",
-      "rootUri": "file:///Users/jeffglenn/Development/flutter/packages/flutter",
+      "rootUri": "file:///Users/jeffglenn/Development/flutter/flutter/packages/flutter",
       "packageUri": "lib/",
       "languageVersion": "3.8"
     },
@@ -69,7 +69,7 @@
     },
     {
       "name": "flutter_test",
-      "rootUri": "file:///Users/jeffglenn/Development/flutter/packages/flutter_test",
+      "rootUri": "file:///Users/jeffglenn/Development/flutter/flutter/packages/flutter_test",
       "packageUri": "lib/",
       "languageVersion": "3.8"
     },
@@ -117,9 +117,9 @@
     },
     {
       "name": "meta",
-      "rootUri": "file:///Users/jeffglenn/.pub-cache/hosted/pub.dev/meta-1.16.0",
+      "rootUri": "file:///Users/jeffglenn/.pub-cache/hosted/pub.dev/meta-1.17.0",
       "packageUri": "lib/",
-      "languageVersion": "2.12"
+      "languageVersion": "3.5"
     },
     {
       "name": "path",
@@ -141,7 +141,7 @@
     },
     {
       "name": "sky_engine",
-      "rootUri": "file:///Users/jeffglenn/Development/flutter/bin/cache/pkg/sky_engine",
+      "rootUri": "file:///Users/jeffglenn/Development/flutter/flutter/bin/cache/pkg/sky_engine",
       "packageUri": "lib/",
       "languageVersion": "3.8"
     },
@@ -177,7 +177,7 @@
     },
     {
       "name": "test_api",
-      "rootUri": "file:///Users/jeffglenn/.pub-cache/hosted/pub.dev/test_api-0.7.6",
+      "rootUri": "file:///Users/jeffglenn/.pub-cache/hosted/pub.dev/test_api-0.7.7",
       "packageUri": "lib/",
       "languageVersion": "3.5"
     },
@@ -213,8 +213,8 @@
     }
   ],
   "generator": "pub",
-  "generatorVersion": "3.9.2",
-  "flutterRoot": "file:///Users/jeffglenn/Development/flutter",
-  "flutterVersion": "3.35.6",
+  "generatorVersion": "3.10.8",
+  "flutterRoot": "file:///Users/jeffglenn/Development/flutter/flutter",
+  "flutterVersion": "3.38.9",
   "pubCache": "file:///Users/jeffglenn/.pub-cache"
 }
