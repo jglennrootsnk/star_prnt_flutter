@@ -35,7 +35,7 @@ class PrinterConnection {
     }
   }
 
-  /// Disconnect from the printer
+  /// Disconnect from the printer gracefully (TCP FIN handshake)
   Future<void> disconnect() async {
     if (!_isConnected) {
       return;
@@ -50,6 +50,16 @@ class PrinterConnection {
       _socket = null;
       _isConnected = false;
     }
+  }
+
+  /// Force disconnect using TCP RST (immediate termination).
+  /// Use when graceful disconnect fails to release the printer port.
+  Future<void> forceDisconnect() async {
+    try {
+      _socket?.destroy();
+    } catch (_) {}
+    _socket = null;
+    _isConnected = false;
   }
 
   /// Send raw bytes to the printer
