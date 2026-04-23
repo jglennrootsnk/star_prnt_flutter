@@ -72,6 +72,7 @@ class PrinterConnection {
       _socket!.add(data);
       await _socket!.flush();
     } catch (e) {
+      _isConnected = false;
       throw Exception('Failed to send data to printer: $e');
     }
   }
