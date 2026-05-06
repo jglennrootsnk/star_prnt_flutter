@@ -110,10 +110,25 @@ class NativeStarTransport implements PrinterTransport {
       throw Exception('Not connected to printer');
     }
     try {
-      await _channel.invokeMethod('write', {
-        'handle': h,
-        'bytes': data,
-      });
+      // Split large payloads in half. For raster commands (ESC GS S + data),
+      // the printer enters raw-byte-receive mode after the header and just
+      // consumes bytes — safe to split anywhere after the 10-byte header.
+      if (data.length > 32768) {
+        final mid = data.length ~/ 2;
+        await _channel.invokeMethod('write', {
+          'handle': h,
+          'bytes': Uint8List.sublistView(data, 0, mid),
+        });
+        await _channel.invokeMethod('write', {
+          'handle': h,
+          'bytes': Uint8List.sublistView(data, mid),
+        });
+      } else {
+        await _channel.invokeMethod('write', {
+          'handle': h,
+          'bytes': data,
+        });
+      }
     } on PlatformException catch (e) {
       throw Exception('Failed to send data: ${e.message ?? e.code}');
     }

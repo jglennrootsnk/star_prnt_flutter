@@ -172,12 +172,7 @@ public class SwiftStarPrntFlutterPlugin: NSObject, FlutterPlugin {
                     size: length - total,
                     numberOfBytesWritten: &written
                 )
-                if written == 0 {
-                    // Buffer full — wait briefly for the transport to drain,
-                    // then retry. Bluetooth especially needs this back-pressure.
-                    usleep(50_000) // 50 ms
-                    continue
-                }
+                if written == 0 { break }
                 total += written
             }
             result(Int(total))
