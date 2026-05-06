@@ -103,14 +103,6 @@ class NativeStarTransport implements PrinterTransport {
   @override
   Future<void> forceDisconnect() => disconnect();
 
-  /// Maximum bytes per native write call. Bluetooth has limited buffer space
-  /// and throughput — sending large payloads (e.g. raster labels) in one shot
-  /// can overflow the printer's receive buffer, causing truncated prints.
-  static const int _maxChunkSize = 1024;
-
-  /// Delay between chunks to let the Bluetooth/USB transport drain.
-  static const Duration _interChunkDelay = Duration(milliseconds: 60);
-
   @override
   Future<void> sendBytes(Uint8List data) async {
     final h = _handle;
@@ -118,26 +110,10 @@ class NativeStarTransport implements PrinterTransport {
       throw Exception('Not connected to printer');
     }
     try {
-      // Chunk large payloads to avoid overwhelming Bluetooth/USB buffers
-      if (data.length <= _maxChunkSize) {
-        await _channel.invokeMethod('write', {
-          'handle': h,
-          'bytes': data,
-        });
-      } else {
-        for (var offset = 0; offset < data.length; offset += _maxChunkSize) {
-          final end = (offset + _maxChunkSize).clamp(0, data.length);
-          final chunk = data.sublist(offset, end);
-          await _channel.invokeMethod('write', {
-            'handle': h,
-            'bytes': chunk,
-          });
-          // Allow the transport buffer to drain between chunks
-          if (end < data.length) {
-            await Future.delayed(_interChunkDelay);
-          }
-        }
-      }
+      await _channel.invokeMethod('write', {
+        'handle': h,
+        'bytes': data,
+      });
     } on PlatformException catch (e) {
       throw Exception('Failed to send data: ${e.message ?? e.code}');
     }

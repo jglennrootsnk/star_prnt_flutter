@@ -134,7 +134,12 @@ class StarPrntFlutterPlugin : FlutterPlugin, MethodCallHandler {
             var offset = 0
             while (offset < bytes.size) {
                 val written = port.writePort(bytes, offset, bytes.size - offset)
-                if (written <= 0) break
+                if (written <= 0) {
+                    // Buffer full — wait briefly for the transport to drain,
+                    // then retry. Bluetooth especially needs this back-pressure.
+                    Thread.sleep(50)
+                    continue
+                }
                 offset += written
             }
             result.success(offset)
