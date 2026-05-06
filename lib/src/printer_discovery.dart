@@ -1,18 +1,43 @@
 import 'dart:async';
 import 'dart:io';
+
+import 'package:flutter/services.dart';
+
 import 'models/printer_info.dart';
 
-/// Service for discovering Star Micronics printers on the network
+/// Filter for [PrinterDiscovery.discoverNative].
+enum NativeDiscoveryTarget {
+  /// All transports the native SDK knows about.
+  all,
+
+  /// Bluetooth Classic / MFi (paired devices on iOS, paired devices on Android).
+  bluetooth,
+
+  /// USB printers — USB-B printer class on Android, MFi USB iAP on iOS.
+  usb,
+
+  /// LAN printers visible to Star's native discovery.
+  lan,
+}
+
+/// Service for discovering Star Micronics printers.
+///
+/// Two discovery paths are exposed:
+/// - [discover] / [discoverLocal] — pure-Dart subnet scan for TCP/9100 printers
+///   (the original behavior, still useful when you want quick LAN discovery
+///   without the native SDK).
+/// - [discoverNative] — calls Star's native SDK on iOS/Android to find USB and
+///   Bluetooth printers (and LAN, if you'd prefer Star's discovery). Required
+///   for any non-TCP transport.
 class PrinterDiscovery {
+  static const MethodChannel _channel =
+      MethodChannel('star_prnt_flutter/native');
+
   /// Discovers printers on the local network by scanning IP addresses
+  /// for an open TCP port (typically 9100).
   ///
-  /// [subnet] - The subnet to scan (e.g., '192.168.1')
-  /// [startRange] - Starting IP address in the range (default: 1)
-  /// [endRange] - Ending IP address in the range (default: 254)
-  /// [port] - Port to check (default: 9100 for Star printers)
-  /// [timeout] - Connection timeout duration (default: 2 seconds)
-  ///
-  /// Returns a stream of discovered printers
+  /// Pure-Dart implementation; works on every platform without the native
+  /// SDK. For USB or Bluetooth discovery, use [discoverNative] instead.
   static Stream<PrinterInfo> discover({
     required String subnet,
     int startRange = 1,
@@ -27,12 +52,37 @@ class PrinterDiscovery {
       futures.add(_checkPrinter(ipAddress, port, timeout));
     }
 
-    // Process results as they complete
     for (final future in futures) {
       final printer = await future;
-      if (printer != null) {
-        yield printer;
-      }
+      if (printer != null) yield printer;
+    }
+  }
+
+  /// Discover Bluetooth, USB, and LAN printers via Star's native SDK.
+  ///
+  /// Only available on iOS and Android. On other platforms this returns
+  /// an empty list (it does not throw, so calling code can be transport-
+  /// agnostic).
+  ///
+  /// On iOS, Bluetooth printers must already be paired in Settings — Apple
+  /// does not let third-party apps initiate MFi pairing.
+  static Future<List<PrinterInfo>> discoverNative({
+    NativeDiscoveryTarget target = NativeDiscoveryTarget.all,
+  }) async {
+    if (!Platform.isIOS && !Platform.isAndroid) return const [];
+    try {
+      final result = await _channel.invokeMethod('searchPrinters', {
+        'target': target.name.toUpperCase(),
+      });
+      if (result is! List) return const [];
+      return result
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .map(PrinterInfo.fromNativeMap)
+          .toList();
+    } on PlatformException {
+      return const [];
+    } on MissingPluginException {
+      return const [];
     }
   }
 
@@ -44,35 +94,13 @@ class PrinterDiscovery {
   ) async {
     Socket? socket;
     try {
-      socket = await Socket.connect(
-        ipAddress,
-        port,
-        timeout: timeout,
-      );
-
-      // If connection successful, this is likely a printer
-      return PrinterInfo(
-        ipAddress: ipAddress,
-        port: port,
-      );
-    } catch (e) {
-      // Connection failed, no printer at this address
+      socket = await Socket.connect(ipAddress, port, timeout: timeout);
+      return PrinterInfo(ipAddress: ipAddress, port: port);
+    } catch (_) {
       return null;
     } finally {
       socket?.destroy();
     }
-  }
-
-  /// Discovers printers by broadcasting (mDNS/Bonjour)
-  ///
-  /// Note: This requires platform-specific implementation and additional dependencies
-  /// For now, this is a placeholder for future implementation
-  static Stream<PrinterInfo> discoverByBroadcast({
-    Duration timeout = const Duration(seconds: 5),
-  }) async* {
-    // TODO: Implement mDNS discovery
-    // This would require packages like multicast_dns
-    throw UnimplementedError('Broadcast discovery not yet implemented');
   }
 
   /// Checks if a specific printer is online
@@ -92,20 +120,15 @@ class PrinterDiscovery {
 
       for (final interface in interfaces) {
         for (final addr in interface.addresses) {
-          // Look for IPv4 addresses that aren't loopback
-          if (addr.type == InternetAddressType.IPv4 && 
-              !addr.isLoopback) {
+          if (addr.type == InternetAddressType.IPv4 && !addr.isLoopback) {
             final parts = addr.address.split('.');
             if (parts.length == 4) {
-              // Return the first three octets
               return '${parts[0]}.${parts[1]}.${parts[2]}';
             }
           }
         }
       }
-    } catch (e) {
-      // Ignore errors
-    }
+    } catch (_) {}
     return null;
   }
 
@@ -117,10 +140,6 @@ class PrinterDiscovery {
     if (subnet == null) {
       throw Exception('Unable to determine local subnet');
     }
-
-    yield* discover(
-      subnet: subnet,
-      timeout: timeout,
-    );
+    yield* discover(subnet: subnet, timeout: timeout);
   }
 }

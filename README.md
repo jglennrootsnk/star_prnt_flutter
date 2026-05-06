@@ -8,9 +8,19 @@ A Flutter package for Star Micronics thermal printers that supports network disc
 - 📝 **Text Printing**: Full support for text formatting, alignment, sizes, and styles
 - 🖼️ **Raster Graphics**: Print images and graphics with support for dithering
 - 📱 **QR Codes & Barcodes**: Generate and print QR codes, 1D barcodes, and PDF417
-- 🔌 **Network Connection**: Robust TCP/IP socket communication
+- 🔌 **Multi-transport**: Ethernet (TCP), USB, and Bluetooth (Classic/MFi) on iOS and Android
 - ⚡ **Command Builder**: Fluent API for building complex print layouts
 - ✅ **Status Checking**: Query printer status and paper presence
+
+## Transports
+
+| Transport | Android | iOS | Other platforms |
+| --- | --- | --- | --- |
+| Ethernet (TCP 9100) | ✅ pure Dart | ✅ pure Dart | ✅ pure Dart |
+| USB (USB-B / AOA / USB-C / iOS USB iAP) | ✅ via Star SDK | ✅ via StarIO.framework | ❌ |
+| Bluetooth Classic (MFi on iOS) | ✅ via Star SDK | ✅ via StarIO.framework | ❌ |
+
+The Star Micronics native SDK (`com.starmicronics:stario` on Android, `StarIO.framework` on iOS) is bundled with this package and carries the MFi External Accessory protocol registrations (`jp.star-m.starpro` and `jp.star-m.starpro.ext`). Apps using this package inherit MFi access to certified Star printers without their own MFi membership.
 
 ## Supported Printers
 
@@ -42,14 +52,55 @@ Then run:
 flutter pub get
 ```
 
+## Per-platform setup (USB & Bluetooth)
+
+Skip this section if you only need Ethernet (TCP). USB and Bluetooth require small additions to the host app.
+
+### iOS
+
+Add the following to `ios/Runner/Info.plist`. The MFi protocol strings are required — Apple will not load them from a plugin's plist, only from the host app's:
+
+```xml
+<key>UISupportedExternalAccessoryProtocols</key>
+<array>
+  <string>jp.star-m.starpro</string>
+  <string>jp.star-m.starpro.ext</string>
+</array>
+<key>NSBluetoothAlwaysUsageDescription</key>
+<string>This app uses Bluetooth to communicate with Star printers.</string>
+<key>NSBluetoothPeripheralUsageDescription</key>
+<string>This app uses Bluetooth to communicate with Star printers.</string>
+<key>NSLocalNetworkUsageDescription</key>
+<string>This app discovers Star printers on the local network.</string>
+```
+
+**iOS Bluetooth pairing** must happen in the iOS *Settings → Bluetooth* screen first. Apple does not allow third-party apps to initiate MFi Bluetooth pairing programmatically. Once a Star printer is paired, this package finds it via discovery automatically.
+
+**iOS Simulator on Apple Silicon** requires Rosetta — Star's `StarIO.framework` is a fat binary without separate `arm64-simulator` slices, so the simulator must run in x86_64 mode. On a real device this is irrelevant.
+
+**App Store review** — apps that ship the External Accessory protocols are routinely approved when they actually use a registered Star printer.
+
+### Android
+
+`AndroidManifest.xml` permissions are inherited from this plugin's manifest, but on Android 12+ the *runtime* permissions still have to be requested by the host app:
+
+```dart
+// Use the permission_handler package (or equivalent):
+await Permission.bluetoothConnect.request();
+await Permission.bluetoothScan.request();
+```
+
+Set `minSdkVersion 21` (or higher) in `android/app/build.gradle`. USB host mode is automatic — no additional permission is needed.
+
 ## Quick Start
 
 ### 1. Discover Printers
 
+**Ethernet (pure Dart subnet scan):**
+
 ```dart
 import 'package:star_prnt_flutter/star_prnt_flutter.dart';
 
-// Discover printers on local network
 await for (final printer in PrinterDiscovery.discoverLocal()) {
   print('Found printer: ${printer.ipAddress}');
 }
@@ -60,12 +111,38 @@ await for (final printer in PrinterDiscovery.discover(subnet: '192.168.1')) {
 }
 ```
 
+**USB & Bluetooth (Star native SDK):**
+
+```dart
+final all = await PrinterDiscovery.discoverNative();
+for (final p in all) {
+  print('${p.connectionType}: ${p.portName ?? p.ipAddress} (${p.modelName})');
+}
+
+// Or filter to a single transport:
+final btOnly = await PrinterDiscovery.discoverNative(
+  target: NativeDiscoveryTarget.bluetooth,
+);
+```
+
 ### 2. Connect and Print
 
 ```dart
-// Create printer connection
+// Ethernet (unchanged from previous versions)
 final printer = PrinterInfo(ipAddress: '192.168.1.100');
 final connection = PrinterConnection(printer);
+
+// USB
+final usbPrinter = PrinterInfo.usb(portName: 'USB:TSP100');
+final usbConnection = PrinterConnection(usbPrinter);
+
+// Bluetooth
+final btPrinter = PrinterInfo.bluetooth(portName: 'BT:00:11:62:00:00:00');
+final btConnection = PrinterConnection(btPrinter);
+
+// Or, discovered printers connect with no extra setup:
+final discovered = await PrinterDiscovery.discoverNative();
+final connection2 = PrinterConnection(discovered.first);
 
 // Connect
 await connection.connect();

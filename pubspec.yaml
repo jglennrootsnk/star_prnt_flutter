@@ -1,11 +1,11 @@
 name: star_prnt_flutter
-description: A Flutter package for Star Micronics thermal printers supporting network discovery and StarPRNT commands
-version: 1.0.0
+description: A Flutter package for Star Micronics thermal printers supporting network, USB, and Bluetooth connectivity using the StarPRNT protocol.
+version: 1.1.0
 homepage: https://github.com/yourusername/star_prnt_flutter
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
-  flutter: ">=3.0.0"
+  flutter: ">=3.3.0"
 
 dependencies:
   flutter:
@@ -16,3 +16,12 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.0
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: com.rootsnk.flutter_star
+        pluginClass: StarPrntFlutterPlugin
+      ios:
+        pluginClass: StarPrntFlutterPlugin
